@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>乗車位置メモ</title>
+<style>
+:root{
+  --ink:#0e1116; --sub:#737b87; --hair:#e6e9ee;
+  --bg:#eef0f3; --card:#fff; --nav:#0b3556;
+  --r:16px; --ease:cubic-bezier(.2,.7,.3,1);
+  --shadow:0 1px 0 rgba(14,17,22,.05),0 8px 22px -16px rgba(14,17,22,.55);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif;
+  font-size:15px;line-height:1.55;font-feature-settings:"tnum" 1,"palt" 1;
+  padding-bottom:env(safe-area-inset-bottom)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid #2b8fd8;outline-offset:2px}
+
+.bar{position:sticky;top:0;z-index:40;background:var(--nav);color:#fff;
+  padding:calc(env(safe-area-inset-top) + 12px) 14px 12px;display:flex;align-items:center;gap:6px}
+.bar h1{margin:0;font-size:16px;font-weight:700;letter-spacing:.04em;flex:1;padding:0 2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .pill{color:#fff;font-size:14px;padding:7px 13px;border-radius:99px;background:rgba(255,255,255,.14);
+  transition:transform .15s var(--ease)}
+.bar .plain{color:#fff;font-size:21px;line-height:1;padding:4px 6px;transition:transform .15s var(--ease),opacity .2s}
+.bar .back{font-size:27px;font-weight:300;padding:0 6px 5px}
+.bar button:active{transform:scale(.88)}
+.strip{height:3px;display:flex;position:sticky;top:0;z-index:39}
+.strip i{flex:1}
+
+.menu{position:fixed;top:calc(env(safe-area-inset-top) + 54px);right:12px;z-index:50;
+  background:#fff;border-radius:14px;padding:6px;min-width:174px;
+  box-shadow:0 10px 34px -10px rgba(14,17,22,.4),0 2px 6px rgba(14,17,22,.1);transform-origin:top right}
+.menu button{display:block;width:100%;text-align:left;padding:11px 12px;border-radius:9px;font-size:14.5px;font-weight:600}
+.menu button:active{background:#f1f3f6}
+.menu button.danger{color:#c0392b}
+.menu hr{border:none;border-top:1px solid var(--hair);margin:5px 8px}
+.scrim{position:fixed;inset:0;z-index:45}
+
+.wrap{max-width:640px;margin:0 auto;padding:14px 14px 44px}
+
+.seg{display:flex;gap:4px;background:#e2e5ea;border-radius:99px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;padding:8px 10px;border-radius:99px;font-size:13.5px;font-weight:700;color:var(--sub);
+  transition:background .22s var(--ease),color .22s var(--ease),transform .15s var(--ease)}
+.seg button:active{transform:scale(.97)}
+.seg button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(14,17,22,.12)}
+.seg button.add{flex:0 0 40px}
+
+.listPanel{transition:height .34s var(--ease)}
+.routecard{position:relative;background:var(--card);border-radius:var(--r);padding:15px 15px 14px;
+  margin-bottom:12px;box-shadow:var(--shadow);transition:transform .18s var(--ease);cursor:pointer}
+.routecard:active{transform:scale(.985)}
+.rtitle{font-size:17.5px;font-weight:700;letter-spacing:-.01em;padding-right:34px}
+.od{color:var(--sub);font-size:13px;margin-top:2px}
+.star{position:absolute;top:10px;right:8px;width:36px;height:36px;border-radius:50%;
+  font-size:17px;line-height:1;color:#c9ced6;transition:transform .2s var(--ease),color .2s}
+.star.on{color:#f0a91e}
+.star:active{transform:scale(.85)}
+.routebar{display:flex;height:7px;border-radius:99px;overflow:hidden;margin:12px 0 10px;background:var(--hair)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--sub)}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend b{width:8px;height:8px;border-radius:2px;display:inline-block}
+.dirchips{display:flex;gap:5px;margin-top:10px}
+.dirchips i{font-style:normal;font-size:11px;font-weight:700;color:var(--sub);background:#f0f2f5;border-radius:99px;padding:2px 9px}
+.empty{background:var(--card);border-radius:var(--r);padding:36px 24px;text-align:center;color:var(--sub);box-shadow:var(--shadow)}
+.empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:6px}
+
+.head{margin:2px 0 14px}
+.head .t{font-size:23px;font-weight:700;letter-spacing:-.015em}
+.head .meta{color:var(--sub);font-size:13px;margin-top:3px}
+
+.panel{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;
+  transition:height .34s var(--ease)}
+.panelIn{padding:16px 16px 4px}
+.leg{display:flex;gap:14px}
+.rail{width:24px;flex:none;display:flex;flex-direction:column;align-items:center}
+.dot{width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid currentColor;margin-top:5px;flex:none}
+.spine{flex:1;width:9px;border-radius:99px;margin:5px 0;transform-origin:top center}
+.dashed{flex:1;width:2px;margin:5px 0;background:repeating-linear-gradient(to bottom,#c6cbd3 0 3px,transparent 3px 9px)}
+.body{flex:1;padding-bottom:14px;min-width:0}
+.station{font-size:17.5px;font-weight:700;letter-spacing:-.01em;line-height:1.35}
+.plat{font-size:11.5px;font-weight:700;color:var(--sub);margin-left:8px;border:1px solid var(--hair);
+  border-radius:5px;padding:1px 6px;vertical-align:2px}
+.walkline{color:var(--sub);font-size:13.5px;padding:11px 0 15px}
+.walkline b{color:var(--ink);font-weight:600}
+
+.train{margin-top:10px;border-radius:12px;background:#f7f8fa;overflow:hidden}
+.trainhead{padding:11px 13px 10px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.linename{font-weight:700;font-size:15px}
+.dest{color:var(--sub);font-size:12.5px}
+.ride{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--sub);white-space:nowrap}
+
+.tabrow{display:flex;gap:6px;padding:0 13px 9px;flex-wrap:wrap}
+.tabrow button{font-size:12.5px;font-weight:700;color:var(--sub);padding:5px 12px;border-radius:99px;background:#e7eaee;
+  transition:background .18s var(--ease),color .18s var(--ease),transform .15s var(--ease)}
+.tabrow button:active{transform:scale(.94)}
+.tabrow button[aria-pressed=true]{background:var(--c,#333);color:#fff}
+.tabrow.facil button{background:#fff;box-shadow:inset 0 0 0 1px #dfe3e9}
+.tabrow.facil button[aria-pressed=true]{background:#fff;color:var(--c,#333);box-shadow:inset 0 0 0 2px var(--c,#333)}
+
+.tabrow.below{padding:0 13px 13px}
+.posrow{display:flex;align-items:center;gap:13px;padding:0 13px 13px}
+.posrow.tight{padding-bottom:11px}
+.marker{flex:none;min-width:86px;border-radius:12px;padding:10px 12px 8px;text-align:center;
+  background:var(--c,#333);color:#fff;box-shadow:0 6px 14px -8px var(--c,#333)}
+.marker .n{font-size:29px;font-weight:800;line-height:.98;letter-spacing:-.04em}
+.marker .n em{font-style:normal;font-size:13px;font-weight:700;margin-left:2px;letter-spacing:0}
+.marker .d{font-size:11.5px;opacity:.87;margin-top:3px}
+.posmemo{font-size:13px;color:var(--sub);line-height:1.5;min-width:0}
+.nopos{padding:0 13px 13px;font-size:13px;color:var(--sub)}
+.note{padding:10px 13px;font-size:12.5px;color:var(--sub);border-top:1px solid #eceef2}
+
+.actions{display:flex;gap:9px;margin-top:12px}
+.btn{flex:1;padding:12px;border-radius:12px;background:var(--card);font-size:14px;font-weight:700;
+  text-align:center;box-shadow:var(--shadow);transition:transform .15s var(--ease)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--nav);color:#fff}
+
+label{display:block;font-size:12px;color:var(--sub);margin:0 0 4px}
+.field{margin-bottom:12px}
+input[type=text],input[type=number]{width:100%;padding:10px 11px;border:1px solid var(--hair);border-radius:10px;
+  background:#fff;transition:border-color .15s,box-shadow .15s}
+input[type=text]:focus,input[type=number]:focus{border-color:var(--nav);box-shadow:0 0 0 3px rgba(11,53,86,.09);outline:none}
+input[type=color]{width:46px;height:40px;padding:2px;border:1px solid var(--hair);border-radius:10px;background:#fff}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.block{background:var(--card);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
+.blockhead{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.blockhead .t{font-weight:700;font-size:14px;flex:1}
+.blockhead button{font-size:12.5px;color:#c0392b}
+.posedit{border-radius:11px;padding:11px;margin-bottom:9px;background:#f5f7f9}
+.posedit .ph{display:flex;align-items:center;margin-bottom:9px}
+.posedit .ph span{font-size:11.5px;color:var(--sub);flex:1;font-weight:700}
+.posedit .ph button{font-size:12px;color:#c0392b}
+.mini{width:100%;padding:10px;border:1px dashed #c3c8d0;border-radius:10px;color:var(--sub);font-size:13px;background:#fff}
+.addrow{display:flex;gap:9px;margin:4px 0 16px}
+.addrow button{flex:1;padding:11px;border:1px dashed #c3c8d0;border-radius:12px;color:var(--sub);font-size:13.5px;background:#fff}
+.hint{font-size:12px;color:var(--sub);margin:-4px 0 16px;line-height:1.6}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);background:var(--ink);color:#fff;
+  padding:11px 18px;border-radius:99px;font-size:13px;opacity:0;pointer-events:none;
+  transition:opacity .22s var(--ease),transform .22s var(--ease);z-index:60}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:no-preference){
+  .anim{opacity:0;animation:rise .42s var(--ease) forwards;animation-delay:calc(var(--i,0) * 55ms)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .spine{animation:draw .5s var(--ease) forwards;animation-delay:calc(var(--i,0) * 55ms)}
+  @keyframes draw{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  .marker{animation:pop .38s cubic-bezier(.2,1.3,.4,1) forwards}
+  @keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+  .swap{animation:swap .26s var(--ease)}
+  @keyframes swap{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+  .star.burst{animation:burst .4s cubic-bezier(.2,1.5,.4,1)}
+  @keyframes burst{0%{transform:scale(1)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
+  .slideL{animation:slideL .34s var(--ease)}
+  .slideR{animation:slideR .34s var(--ease)}
+  @keyframes slideL{from{opacity:.15;transform:translateX(22px)}to{opacity:1;transform:none}}
+  @keyframes slideR{from{opacity:.15;transform:translateX(-22px)}to{opacity:1;transform:none}}
+  .pushL{animation:pushL .34s var(--ease)}
+  .pushR{animation:pushR .34s var(--ease)}
+  @keyframes pushL{from{transform:translateX(20px)}to{transform:none}}
+  @keyframes pushR{from{transform:translateX(-20px)}to{transform:none}}
+  .menu{animation:menuIn .18s var(--ease)}
+  @keyframes menuIn{from{opacity:0;transform:scale(.9) translateY(-6px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <button class="plain back" id="backBtn" hidden aria-label="戻る">‹</button>
+  <h1 id="title">乗車位置メモ</h1>
+  <button class="pill" id="addBtn">＋ ルート</button>
+  <button class="plain" id="menuBtn" hidden aria-label="メニュー">⋯</button>
+</div>
+<div class="strip" id="strip"></div>
+<div class="wrap" id="view"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY='norikae-routes-v3';
+const store={
+  async load(){
+    try{ if(window.storage){const r=await window.storage.get(KEY); if(r&&r.value) return JSON.parse(r.value);} }catch(e){}
+    try{ const s=localStorage.getItem(KEY); if(s) return JSON.parse(s); }catch(e){}
+    return null;
+  },
+  async save(d){
+    const s=JSON.stringify(d);
+    try{ if(window.storage){ await window.storage.set(KEY,s); return; } }catch(e){}
+    try{ localStorage.setItem(KEY,s); }catch(e){}
+  }
+};
+
+const HIBIYA='#9fa3a1', TOBU='#0f6cb6', MUSASHINO='#e8531f';
+const P=(len,via,car,door,memo)=>({len,via,car,door,memo:memo||''});
+
+const seed=[{
+  id:'r1', title:'自宅 ⇄ イオンレイクタウン', fav:true,
+  dirs:[
+  {label:'行き', from:'南千住', to:'越谷レイクタウン', memo:'乗換2回', legs:[
+    {type:'walk', text:'台東区清川2丁目 → 南千住', min:10},
+    {type:'train', line:'東京メトロ日比谷線', dest:'北千住行', color:HIBIYA, min:3,
+     on:'南千住', onPlat:'', off:'北千住', offPlat:'5番線',
+     positions:[], posNote:'いつもの位置でOK（7両固定）', note:''},
+    {type:'walk', text:'北千住で乗り換え', min:3},
+    {type:'train', line:'東武スカイツリーライン', dest:'南栗橋方面', color:TOBU, min:16,
+     on:'北千住', onPlat:'1番線', off:'新越谷', offPlat:'4番線',
+     positions:[
+       P('10両','エスカレーター','3号車','3・4番ドア','南越谷への最短'),
+       P('10両','階段','4号車','3・4番ドア','8号車1番ドアにも階段'),
+       P('10両','エレベーター','6号車','2番ドア',''),
+       P('8両','エスカレーター','3号車','3・4番ドア','10両と同じ位置'),
+       P('8両','階段','4号車','3・4番ドア',''),
+       P('8両','エレベーター','6号車','2番ドア',''),
+       P('6両','エスカレーター','1号車','3・4番ドア','浅草発着の6両'),
+       P('6両','階段','2号車','3・4番ドア','6号車1番ドアにも階段'),
+       P('6両','エレベーター','4号車','2番ドア','')],
+     posNote:'', note:'1号車＝南栗橋寄り（先頭）。4番線の降り口は右側。改札を右に出ると東口で、南越谷はそちら側'},
+    {type:'walk', text:'新越谷 → 南越谷', min:3},
+    {type:'train', line:'JR武蔵野線', dest:'海浜幕張行', color:MUSASHINO, min:3,
+     on:'南越谷', onPlat:'2番線', off:'越谷レイクタウン', offPlat:'2番線',
+     positions:[
+       P('8両','エスカレーター','5号車','1番ドア','改札・南口へ最短'),
+       P('8両','エレベーター','6号車','3番ドア',''),
+       P('8両','階段','7号車','4番ドア','8号車1番ドアでも可')],
+     posNote:'', note:'8両固定・8号車が先頭。南越谷では階段（6号車2番ドア）かエスカレーター（8号車2番ドア）で上がって、5号車まで歩く'},
+    {type:'walk', text:'越谷レイクタウン 南口 → レイクタウン6丁目', min:12}
+  ]},
+  {label:'帰り', from:'越谷レイクタウン', to:'南千住', memo:'乗換2回', legs:[
+    {type:'walk', text:'レイクタウン6丁目 → 越谷レイクタウン 南口', min:12},
+    {type:'train', line:'JR武蔵野線', dest:'府中本町方面', color:MUSASHINO, min:3,
+     on:'越谷レイクタウン', onPlat:'1番線', off:'南越谷', offPlat:'1番線',
+     positions:[
+       P('8両','エスカレーター','8号車','3番ドア','南越谷の改札へ直結'),
+       P('8両','階段','8号車','3番ドア','6号車3番ドアにも階段'),
+       P('8両','エレベーター','8号車','1番ドア','')],
+     posNote:'', note:'8両固定・8号車＝最後尾。レイクタウンの乗り口は階段7号車1番ドア／エスカレーター4号車1番ドア／エレベーター6号車2番ドア'},
+    {type:'walk', text:'南越谷 → 新越谷', min:3},
+    {type:'train', line:'東武スカイツリーライン', dest:'押上・半蔵門線方面', color:TOBU, min:16,
+     on:'新越谷', onPlat:'1番線', off:'北千住', offPlat:'3・4番線',
+     positions:[
+       P('10両','エスカレーター','3号車','3・4番ドア','北改札口方面。日比谷線2-4の真上'),
+       P('10両','階段','3号車','3・4番ドア','同じ位置に階段あり'),
+       P('10両','エレベーター','1号車','4番ドア','北改札口・千代田線方面'),
+       P('8両','エスカレーター','2号車','3・4番ドア','北改札口方面'),
+       P('8両','階段','2号車','3・4番ドア',''),
+       P('8両','エレベーター','7号車','2番ドア','中央改札口方面'),
+       P('6両','エスカレーター','1号車','4番ドア','北改札口に届かないので中央改札口方面'),
+       P('6両','階段','1号車','4番ドア',''),
+       P('6両','エレベーター','5号車','2番ドア','中央改札口方面')],
+     posNote:'', note:'1号車＝東武動物公園寄り（最後尾）。新越谷の乗り口は10両＝3号車1番ドア、8両・6両＝1号車1番ドア'},
+    {type:'walk', text:'北千住で乗り換え（1F → 3F）', min:5},
+    {type:'train', line:'東京メトロ日比谷線', dest:'中目黒行', color:HIBIYA, min:3,
+     on:'北千住', onPlat:'6・7番線', off:'南千住', offPlat:'',
+     positions:[
+       P('7両','階段','2号車','3番ドア','いつもの2-4付近。北改札口方面'),
+       P('7両','エスカレーター','1号車','1番ドア','北改札口方面'),
+       P('7両','エレベーター','1号車','4番ドア','')],
+     posNote:'', note:'1号車＝竹ノ塚寄り（最後尾）'},
+    {type:'walk', text:'南千住 → 台東区清川2丁目', min:10}
+  ]}]
+}];
+
+let routes=[], view={name:'list'}, favOnly=false, dirIndex=0, sel={};
+const el=document.getElementById('view'), titleEl=document.getElementById('title');
+const backBtn=document.getElementById('backBtn'), addBtn=document.getElementById('addBtn');
+const menuBtn=document.getElementById('menuBtn'), stripEl=document.getElementById('strip');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1900);}
+const persist=()=>store.save(routes);
+const getRoute=()=>routes.find(x=>x.id===view.id);
+
+function migrate(list){
+  return list.map(r=>{
+    let out=r.dirs?r:{id:r.id||uid(),title:`${r.from} → ${r.to}`,fav:false,
+      dirs:[{label:'行き',from:r.from,to:r.to,memo:r.memo||'',legs:r.legs||[]}]};
+    out.fav=!!out.fav;
+    out.dirs.forEach(d=>d.legs.forEach(l=>{
+      if(l.type!=='train')return;
+      if(!Array.isArray(l.positions)){
+        l.positions=(l.car||l.door)?[{len:'',via:'',car:l.car||'',door:l.door||'',memo:l.posNote||''}]:[];
+        delete l.car; delete l.door;
+      }
+      l.positions.forEach(p=>{if(p.via===undefined)p.via='';});
+      if(l.min===undefined)l.min='';
+    }));
+    return out;
+  });
+}
+function splitCar(s){
+  const m=String(s||'').match(/^\s*([0-9０-９]+)\s*(.*)$/);
+  return m?{n:m[1],u:m[2]}:{n:s||'—',u:''};
+}
+function markerHTML(p){
+  const {n,u}=splitCar(p.car);
+  return `<div class="marker"><div class="n">${esc(n)}${u?`<em>${esc(u)}</em>`:''}</div>
+    <div class="d">${esc(p.door||'')}</div></div>`;
+}
+const totalMin=d=>d.legs.reduce((s,l)=>s+(parseInt(l.min,10)||0),0);
+const rideMin=d=>d.legs.filter(l=>l.type==='train').reduce((s,l)=>s+(parseInt(l.min,10)||0),0);
+const metaText=d=>`${d.from||''} → ${d.to||''}　計${totalMin(d)}分（乗車${rideMin(d)}分）${d.memo?'　'+d.memo:''}`;
+
+/* ---------- 乗車位置エリア（両数 × 設備） ---------- */
+function posInner(l,i){
+  const ps=l.positions||[];
+  if(!ps.length) return `<div class="nopos">${esc(l.posNote||'乗車位置は未登録')}</div>`;
+  const key=dirIndex+'-'+i, s=sel[key]||{};
+  const lens=[...new Set(ps.map(p=>p.len||''))];
+  const len=lens.includes(s.len)?s.len:lens[0];
+  const inLen=ps.filter(p=>(p.len||'')===len);
+  const vias=[...new Set(inLen.map(p=>p.via||''))];
+  const via=vias.includes(s.via)?s.via:vias[0];
+  const cur=inLen.find(p=>(p.via||'')===via)||inLen[0];
+
+  let h='';
+  if(lens.length>1) h+=`<div class="tabrow">${lens.map(x=>
+    `<button data-len="${esc(x)}" data-i="${i}" aria-pressed="${x===len}">${esc(x||'標準')}</button>`).join('')}</div>`;
+  h+=`<div class="posrow${vias.length>1?' tight':''}">${markerHTML(cur)}<div class="posmemo">${esc(cur.memo||'')}</div></div>`;
+  if(vias.length>1) h+=`<div class="tabrow facil below">${vias.map(x=>
+    `<button data-via="${esc(x)}" data-i="${i}" aria-pressed="${x===via}">${esc(x||'標準')}</button>`).join('')}</div>`;
+  return h;
+}
+function repaintPos(i){
+  const box=el.querySelector(`.train[data-leg="${i}"]`);
+  const l=getRoute().dirs[dirIndex].legs[i];
+  const area=box.querySelector('.posarea');
+  area.innerHTML=posInner(l,i);
+  area.classList.remove('swap');void area.offsetWidth;area.classList.add('swap');
+}
+
+/* ---------- menu ---------- */
+let menuEls=null;
+function closeMenu(){ if(menuEls){menuEls.forEach(n=>n.remove());menuEls=null;} }
+function openMenu(){
+  closeMenu();
+  const r=getRoute(); if(!r)return;
+  const scrim=document.createElement('div');scrim.className='scrim';
+  const m=document.createElement('div');m.className='menu';
+  m.innerHTML=`<button data-act="edit">編集</button>
+    <button data-act="fav">${r.fav?'お気に入りから外す':'お気に入りに追加'}</button>
+    <button data-act="export">JSONを書き出す</button>
+    <hr><button data-act="delete" class="danger">削除</button>`;
+  scrim.addEventListener('click',closeMenu);
+  m.addEventListener('click',e=>{
+    const b=e.target.closest('[data-act]'); if(!b)return;
+    closeMenu(); runAction(b.dataset.act);
+  });
+  document.body.append(scrim,m);
+  menuEls=[scrim,m];
+}
+menuBtn.addEventListener('click',e=>{e.stopPropagation();menuEls?closeMenu():openMenu();});
+
+/* ---------- render ---------- */
+function render(){
+  closeMenu();
+  backBtn.hidden=view.name==='list';
+  addBtn.hidden=view.name!=='list';
+  menuBtn.hidden=view.name!=='detail';
+  titleEl.textContent=view.name==='list'?'乗車位置メモ'
+    :view.name==='edit'?'ルートを編集':(getRoute()?.title||'ルート');
+  ({list:renderList,detail:renderDetail,edit:renderEdit})[view.name]();
+  window.scrollTo(0,0);
+}
+
+function cardsHTML(anim){
+  const shown=favOnly?routes.filter(r=>r.fav):routes;
+  if(!shown.length){
+    return favOnly
+      ?`<div class="empty${anim?' anim':''}"><b>お気に入りはまだありません</b>カード右上の星を押すと、ここに集まります。</div>`
+      :`<div class="empty${anim?' anim':''}"><b>まだルートがありません</b>右上の「＋ ルート」から登録できます。</div>`;
+  }
+  return shown.map((r,i)=>{
+    const d=r.dirs[0]||{legs:[]};
+    const bar=(d.legs||[]).map(l=>l.type==='train'
+      ?`<i style="flex:3;background:${esc(l.color||'#888')}"></i>`
+      :`<i style="flex:1;background:#d7dbe1"></i>`).join('');
+    const seen=new Set(),legend=[];
+    r.dirs.forEach(dd=>dd.legs.forEach(l=>{
+      if(l.type==='train'&&!seen.has(l.line)){seen.add(l.line);
+        legend.push(`<span><b style="background:${esc(l.color||'#888')}"></b>${esc(l.line)}</span>`);}
+    }));
+    const t=totalMin(d);
+    return `<div class="routecard${anim?' anim':''}" style="--i:${i+1}" data-open="${r.id}">
+      <button class="star ${r.fav?'on':''}" data-star="${r.id}" aria-label="お気に入り">${r.fav?'★':'☆'}</button>
+      <div class="rtitle">${esc(r.title||'（無題）')}</div>
+      <div class="od">${esc(d.from||'')} → ${esc(d.to||'')}${t?`　計${t}分`:''}</div>
+      <div class="routebar">${bar}</div>
+      <div class="legend">${legend.join('')}</div>
+      <div class="dirchips">${r.dirs.map(x=>`<i>${esc(x.label||'ルート')}</i>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderList(){
+  stripEl.innerHTML='';
+  el.innerHTML=`<div class="seg anim">
+      <button data-fav="all" aria-pressed="${!favOnly}">すべて</button>
+      <button data-fav="fav" aria-pressed="${favOnly}">★ お気に入り</button></div>
+    <div class="listPanel" id="listPanel">${cardsHTML(true)}</div>`;
+}
+
+/* 高さをつなぎながら中身だけ差し替える共通処理 */
+function swapInner(box,html,dirn){
+  const h0=box.offsetHeight;
+  box.style.height=h0+'px';
+  box.style.overflow='hidden';
+  box.innerHTML=html;
+  if(dirn){box.classList.remove('pushL','pushR');void box.offsetWidth;box.classList.add(dirn);}
+  const h1=box.scrollHeight;
+  requestAnimationFrame(()=>{box.style.height=h1+'px';});
+  clearTimeout(box._t);
+  box._t=setTimeout(()=>{box.style.height='';box.style.overflow='';box.classList.remove('pushL','pushR');},380);
+}
+
+function switchFav(v){
+  if(v===favOnly)return;
+  const dirn=v?'pushL':'pushR';
+  favOnly=v;
+  el.querySelectorAll('[data-fav]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.fav==='fav')===favOnly));
+  swapInner(document.getElementById('listPanel'),cardsHTML(false),dirn);
+}
+
+function legsHTML(d){
+  let h='';
+  d.legs.forEach((l,i)=>{
+    const k=i+3;
+    if(l.type==='walk'){
+      h+=`<div class="leg"><div class="rail"><div class="dashed"></div></div>
+        <div class="body"><div class="walkline"><b>徒歩 ${esc(l.min||'')}分</b>　${esc(l.text||'')}</div></div></div>`;
+      return;
+    }
+    const c=l.color||'#888';
+    h+=`<div class="leg">
+      <div class="rail" style="color:${esc(c)}">
+        <div class="dot"></div><div class="spine" style="background:${esc(c)};--i:${k}"></div><div class="dot"></div></div>
+      <div class="body">
+        <div class="station">${esc(l.on||'')}${l.onPlat?`<span class="plat">${esc(l.onPlat)}</span>`:''}</div>
+        <div class="train" data-leg="${i}" style="--c:${esc(c)}">
+          <div class="trainhead"><span class="linename">${esc(l.line||'')}</span>
+            <span class="dest">${esc(l.dest||'')}</span>
+            ${l.min?`<span class="ride">${esc(l.min)}分</span>`:''}</div>
+          <div class="posarea">${posInner(l,i)}</div>
+          ${l.note?`<div class="note">${esc(l.note)}</div>`:''}
+        </div>
+        <div class="station" style="margin-top:12px">${esc(l.off||'')}${l.offPlat?`<span class="plat">${esc(l.offPlat)}</span>`:''}</div>
+      </div></div>`;
+  });
+  return h;
+}
+function paintStrip(d){
+  stripEl.innerHTML=d.legs.filter(l=>l.type==='train')
+    .map(l=>`<i style="background:${esc(l.color||'#888')}"></i>`).join('');
+}
+
+function renderDetail(){
+  const r=getRoute();
+  if(!r){view={name:'list'};return render();}
+  if(dirIndex>=r.dirs.length)dirIndex=0;
+  const d=r.dirs[dirIndex];
+  paintStrip(d);
+  let h=`<div class="head anim"><div class="t">${esc(r.title||'（無題）')}</div>
+    <div class="meta" id="dirMeta">${esc(metaText(d))}</div></div>`;
+  if(r.dirs.length>1){
+    h+=`<div class="seg anim" style="--i:1">${r.dirs.map((x,j)=>
+      `<button data-dir="${j}" aria-pressed="${j===dirIndex}">${esc(x.label||('ルート'+(j+1)))}</button>`).join('')}</div>`;
+  }
+  h+=`<div class="panel anim" style="--i:2" id="panel"><div class="panelIn" id="panelIn">${legsHTML(d)}</div></div>`;
+  el.innerHTML=h;
+}
+
+function switchDir(j){
+  const r=getRoute(); if(j===dirIndex)return;
+  const dirn=j>dirIndex?'slideL':'slideR';
+  dirIndex=j;
+  const d=r.dirs[dirIndex];
+  el.querySelectorAll('[data-dir]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.dir===j));
+  paintStrip(d);
+  document.getElementById('dirMeta').textContent=metaText(d);
+  const panel=document.getElementById('panel'), pin=document.getElementById('panelIn');
+  const h0=panel.offsetHeight;
+  panel.style.height=h0+'px';
+  pin.innerHTML=legsHTML(d);
+  pin.className='panelIn '+dirn;
+  const h1=pin.offsetHeight;
+  requestAnimationFrame(()=>{panel.style.height=h1+'px';});
+  clearTimeout(panel._t);
+  panel._t=setTimeout(()=>{panel.style.height='';pin.className='panelIn';},380);
+}
+
+function renderEdit(){
+  stripEl.innerHTML='';
+  const r=view.draft;
+  if(view.di>=r.dirs.length)view.di=Math.max(0,r.dirs.length-1);
+  const d=r.dirs[view.di];
+  let h=`<div class="block anim">
+    <div class="field" style="margin-bottom:0"><label>タイトル</label>
+      <input type="text" id="f-title" value="${esc(r.title||'')}" placeholder="自宅 ⇄ イオンレイクタウン"></div></div>`;
+  h+=`<div class="seg anim" style="--i:1">${r.dirs.map((x,j)=>
+      `<button data-edir="${j}" aria-pressed="${j===view.di}">${esc(x.label||('ルート'+(j+1)))}</button>`).join('')}
+      <button class="add" data-adddir="1">＋</button></div>`;
+  h+=`<div class="block anim" style="--i:2">
+    <div class="row">
+      <div class="field"><label>この方向の名前</label><input type="text" id="f-label" value="${esc(d.label||'')}" placeholder="行き"></div>
+      <div class="field" style="flex:0 0 78px"><label>&nbsp;</label>
+        <button class="mini" data-deldir="1" ${r.dirs.length<2?'disabled style="opacity:.4"':''}>削除</button></div></div>
+    <div class="row">
+      <div class="field"><label>出発</label><input type="text" id="f-from" value="${esc(d.from||'')}"></div>
+      <div class="field"><label>到着</label><input type="text" id="f-to" value="${esc(d.to||'')}"></div></div>
+    <div class="field" style="margin-bottom:0"><label>メモ</label>
+      <input type="text" id="f-memo" value="${esc(d.memo||'')}" placeholder="乗換2回"></div></div>`;
+
+  d.legs.forEach((l,i)=>{
+    h+=`<div class="block anim" style="--i:${i+3}" data-i="${i}"><div class="blockhead">
+      <span class="t">${l.type==='walk'?'徒歩':'電車'} ${i+1}</span>
+      <button data-del="${i}">削除</button></div>`;
+    if(l.type==='walk'){
+      h+=`<div class="row">
+        <div class="field" style="flex:0 0 88px"><label>分</label><input type="number" data-f="min" value="${esc(l.min||'')}"></div>
+        <div class="field"><label>区間</label><input type="text" data-f="text" value="${esc(l.text||'')}" placeholder="新越谷 → 南越谷"></div></div>`;
+    }else{
+      h+=`<div class="row">
+          <div class="field"><label>路線名</label><input type="text" data-f="line" value="${esc(l.line||'')}"></div>
+          <div class="field" style="flex:0 0 58px"><label>色</label><input type="color" data-f="color" value="${esc(l.color||'#0f6cb6')}"></div></div>
+        <div class="row">
+          <div class="field"><label>行先・種別</label><input type="text" data-f="dest" value="${esc(l.dest||'')}"></div>
+          <div class="field" style="flex:0 0 92px"><label>乗車（分）</label><input type="number" data-f="min" value="${esc(l.min||'')}"></div></div>
+        <div class="row">
+          <div class="field"><label>乗車駅</label><input type="text" data-f="on" value="${esc(l.on||'')}"></div>
+          <div class="field" style="flex:0 0 96px"><label>番線</label><input type="text" data-f="onPlat" value="${esc(l.onPlat||'')}"></div></div>
+        <div class="row">
+          <div class="field"><label>降車駅</label><input type="text" data-f="off" value="${esc(l.off||'')}"></div>
+          <div class="field" style="flex:0 0 96px"><label>番線</label><input type="text" data-f="offPlat" value="${esc(l.offPlat||'')}"></div></div>
+        <label>乗車位置（両数 × 設備）</label>`;
+      (l.positions||[]).forEach((p,j)=>{
+        h+=`<div class="posedit" data-j="${j}">
+          <div class="ph"><span>${j+1}</span><button data-delpos="${j}">削除</button></div>
+          <div class="row">
+            <div class="field" style="flex:0 0 74px;margin-bottom:9px"><input type="text" data-p="len" value="${esc(p.len||'')}" placeholder="10両"></div>
+            <div class="field" style="margin-bottom:9px"><input type="text" data-p="via" value="${esc(p.via||'')}" placeholder="エスカレーター"></div></div>
+          <div class="row">
+            <div class="field" style="margin-bottom:9px"><input type="text" data-p="car" value="${esc(p.car||'')}" placeholder="3号車"></div>
+            <div class="field" style="margin-bottom:9px"><input type="text" data-p="door" value="${esc(p.door||'')}" placeholder="1番ドア"></div></div>
+          <input type="text" data-p="memo" value="${esc(p.memo||'')}" placeholder="改札へ最短"></div>`;
+      });
+      h+=`<button class="mini" data-addpos="${i}">＋ 乗車位置を追加</button>
+        <div class="field" style="margin-top:12px;margin-bottom:0"><label>補足メモ</label>
+        <input type="text" data-f="note" value="${esc(l.note||'')}" placeholder="1号車＝先頭"></div>`;
+    }
+    h+=`</div>`;
+  });
+
+  h+=`<div class="addrow">
+      <button data-add="train">＋ 電車を追加</button>
+      <button data-add="walk">＋ 徒歩を追加</button></div>
+    <p class="hint">同じ両数で「階段／エスカレーター／エレベーター」を並べると、詳細画面でタブとして切り替わります。両数を分けて書けば両数タブも出ます。</p>
+    <div class="actions">
+      <button class="btn" data-act="cancel">やめる</button>
+      <button class="btn primary" data-act="save">保存する</button></div>`;
+  el.innerHTML=h;
+}
+
+function collect(){
+  const r=view.draft,d=r.dirs[view.di];
+  r.title=document.getElementById('f-title').value.trim();
+  d.label=document.getElementById('f-label').value.trim();
+  d.from=document.getElementById('f-from').value.trim();
+  d.to=document.getElementById('f-to').value.trim();
+  d.memo=document.getElementById('f-memo').value.trim();
+  el.querySelectorAll('.block[data-i]').forEach(b=>{
+    const leg=d.legs[+b.dataset.i];
+    b.querySelectorAll('[data-f]').forEach(inp=>{leg[inp.dataset.f]=inp.value;});
+    b.querySelectorAll('.posedit').forEach(pe=>{
+      const p=leg.positions[+pe.dataset.j];
+      pe.querySelectorAll('[data-p]').forEach(inp=>{p[inp.dataset.p]=inp.value;});
+    });
+  });
+}
+const newDir=n=>({label:n,from:'',to:'',memo:'',legs:[]});
+
+function runAction(a){
+  if(a==='fav'){const r=getRoute();r.fav=!r.fav;persist();
+    toast(r.fav?'お気に入りに追加しました':'お気に入りから外しました');return;}
+  if(a==='edit'){const r=getRoute();
+    view={name:'edit',id:r.id,di:dirIndex,draft:JSON.parse(JSON.stringify(r))};return render();}
+  if(a==='cancel'){view=view.id?{name:'detail',id:view.id}:{name:'list'};return render();}
+  if(a==='save'){
+    collect();const d=view.draft;
+    if(!d.title){toast('タイトルを入れてください');return;}
+    const i=routes.findIndex(x=>x.id===d.id);
+    if(i>=0)routes[i]=d;else routes.push(d);
+    persist();toast('保存しました');
+    dirIndex=view.di;sel={};view={name:'detail',id:d.id};return render();}
+  if(a==='delete'){
+    if(!confirm('このルートを削除しますか？'))return;
+    routes=routes.filter(x=>x.id!==view.id);persist();toast('削除しました');
+    view={name:'list'};return render();}
+  if(a==='export'){
+    const txt=JSON.stringify(getRoute(),null,2);
+    if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast('JSONをコピーしました'),()=>prompt('コピーしてください',txt));
+    else prompt('コピーしてください',txt);}
+}
+
+addBtn.addEventListener('click',()=>{
+  view={name:'edit',id:null,di:0,draft:{id:uid(),title:'',fav:false,dirs:[newDir('行き')]}};render();
+});
+backBtn.addEventListener('click',()=>{
+  view=(view.name==='edit'&&view.id)?{name:'detail',id:view.id}:{name:'list'};render();
+});
+
+el.addEventListener('click',e=>{
+  const favBtn=e.target.closest('[data-fav]');
+  if(favBtn)return switchFav(favBtn.dataset.fav==='fav');
+
+  const star=e.target.closest('[data-star]');
+  if(star){
+    e.stopPropagation();
+    const r=routes.find(x=>x.id===star.dataset.star);
+    r.fav=!r.fav;persist();
+    star.classList.toggle('on',r.fav);star.textContent=r.fav?'★':'☆';
+    star.classList.remove('burst');void star.offsetWidth;star.classList.add('burst');
+    if(favOnly&&!r.fav)setTimeout(()=>swapInner(document.getElementById('listPanel'),cardsHTML(false),null),280);
+    return;
+  }
+
+  const dirBtn=e.target.closest('[data-dir]');
+  if(dirBtn)return switchDir(+dirBtn.dataset.dir);
+
+  const lenBtn=e.target.closest('[data-len]');
+  if(lenBtn){
+    const i=+lenBtn.dataset.i, k=dirIndex+'-'+i;
+    sel[k]={...(sel[k]||{}),len:lenBtn.dataset.len};
+    return repaintPos(i);
+  }
+  const viaBtn=e.target.closest('[data-via]');
+  if(viaBtn){
+    const i=+viaBtn.dataset.i, k=dirIndex+'-'+i;
+    sel[k]={...(sel[k]||{}),via:viaBtn.dataset.via};
+    return repaintPos(i);
+  }
+
+  const open=e.target.closest('[data-open]');
+  if(open){view={name:'detail',id:open.dataset.open};dirIndex=0;sel={};return render();}
+
+  const ed=e.target.closest('[data-edir]');
+  if(ed){collect();view.di=+ed.dataset.edir;return render();}
+  if(e.target.closest('[data-adddir]')){
+    collect();view.draft.dirs.push(newDir('帰り'));view.di=view.draft.dirs.length-1;return render();}
+  if(e.target.closest('[data-deldir]')){
+    if(view.draft.dirs.length<2)return;
+    if(!confirm('この方向を削除しますか？'))return;
+    collect();view.draft.dirs.splice(view.di,1);view.di=0;return render();}
+
+  const dp=e.target.closest('[data-delpos]');
+  if(dp){const b=dp.closest('.block');collect();
+    view.draft.dirs[view.di].legs[+b.dataset.i].positions.splice(+dp.dataset.delpos,1);return render();}
+  const ap=e.target.closest('[data-addpos]');
+  if(ap){collect();view.draft.dirs[view.di].legs[+ap.dataset.addpos].positions.push({len:'',via:'',car:'',door:'',memo:''});return render();}
+  const del=e.target.closest('[data-del]');
+  if(del){collect();view.draft.dirs[view.di].legs.splice(+del.dataset.del,1);return render();}
+  const add=e.target.closest('[data-add]');
+  if(add){
+    collect();
+    view.draft.dirs[view.di].legs.push(add.dataset.add==='walk'
+      ?{type:'walk',text:'',min:''}
+      :{type:'train',line:'',dest:'',color:'#0f6cb6',min:'',on:'',onPlat:'',off:'',offPlat:'',
+        positions:[{len:'',via:'',car:'',door:'',memo:''}],posNote:'',note:''});
+    return render();
+  }
+
+  const act=e.target.closest('[data-act]');
+  if(act)runAction(act.dataset.act);
+});
+
+(async function(){
+  routes=migrate(await store.load()||seed);
+  render();
+})();
+</script>
+</body>
+</html>
